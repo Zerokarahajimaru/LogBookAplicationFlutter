@@ -6,10 +6,9 @@ class CounterView extends StatefulWidget {
 
   @override
   State<CounterView> createState() => _CounterViewState();
-
 }
+
 class _CounterViewState extends State<CounterView> {
-  
   final CounterController _controller = CounterController();
 
   @override
@@ -24,13 +23,11 @@ class _CounterViewState extends State<CounterView> {
             Text('${_controller.value}', style: const TextStyle(fontSize: 40)),
             const SizedBox(height: 20),
             const Text("Step Per Klik:"),
-            // Memanggil fungsi slider kamu di sini
-            _sliderbuild(), 
+            _sliderbuild(),
             Text('${_controller.step}'),
           ],
         ),
       ),
-
 
       drawer: Drawer(
         child: ListView(
@@ -38,7 +35,10 @@ class _CounterViewState extends State<CounterView> {
           children: [
             const DrawerHeader(
               decoration: BoxDecoration(color: Colors.blue),
-              child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+              child: Text(
+                'Menu',
+                style: TextStyle(color: Colors.white, fontSize: 24),
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.refresh),
@@ -47,43 +47,68 @@ class _CounterViewState extends State<CounterView> {
                 setState(() {
                   _controller.reset();
                 });
-                Navigator.pop(context); // Tutup drawer setelah reset
+                Navigator.pop(context); 
+                _controller.history("mereset counter");
               },
+            ),ListTile(
+              title: const Text('Riwayat Aktivitas'),
+             
+              subtitle: Column(
+                children: List.generate(_controller.history_private_var.length, (index) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                      children: [
+                        
+                        Text(_controller.history_private_var[index]),
+                        
+                        Text(
+                          _controller.time_history_private_var[index].format(context),
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
             ),
           ],
         ),
       ),
 
-
       floatingActionButton: FloatingActionButton(
-        // Increment sekarang menggunakan nilai step
-        onPressed: () => setState(() => _controller.increment()),
+        
+        onPressed: () => setState(() {
+          _controller.increment();
+          _controller.history("menekan tombol +" + _controller.step.toString());
+        }),
+
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  // Fungsi slider dipindahkan ke dalam class agar bisa pakai setState
+  
   Widget _sliderbuild() {
     return Slider(
-      // Slider butuh double, jadi int kita konversi dulu
-      value: _controller.step.toDouble(), 
+      
+      value: _controller.step.toDouble(),
       label: 'Step: ${_controller.step}',
       min: 1,
-      max: 20,
-      divisions: 19,
+      max: 5,
+      divisions: 4,
       activeColor: Colors.blue,
       inactiveColor: Colors.grey[300],
       thumbColor: const Color.fromARGB(255, 32, 104, 155),
       onChanged: (double newValue) {
-        // Update state agar UI berubah saat digeser
+      
         setState(() {
           _controller.setStep(newValue.toInt());
+          _controller.history("menggeser slider + " + newValue.toInt().toString());
         });
       },
     );
   }
 
-
-  // Widget _history
-}
+  }
