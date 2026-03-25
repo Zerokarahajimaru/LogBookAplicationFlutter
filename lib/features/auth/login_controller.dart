@@ -1,45 +1,74 @@
 import 'dart:async';
-import 'package:flutter_application_1/features/auth/user_data.dart'; // Import the new user data file
+import 'package:flutter_application_1/services/mongo_service.dart';
 
 class LoginController {
-  // The hardcoded user map has been moved to user_data.dart
-
+  final MongoService _mongoService = MongoService();
   int _loginAttempts = 0;
   bool _isLockedOut = false;
+  Timer? _lockoutTimer;
 
-  // Getter untuk View bisa tahu status lockout
   bool get isLockedOut => _isLockedOut;
+  String? errorMessage;
 
-  // Fungsi pengecekan (Logic-Only)
-  // Menggunakan Future<String> untuk memberikan pesan hasil yang lebih deskriptif
-  Future<String> login(String username, String password) async {
+  Future<Map<String, dynamic>?> login(String username, String password) async {
     if (_isLockedOut) {
-      return "Anda telah salah 3 kali. Coba lagi nanti.";
+      errorMessage = "Anda telah salah 3 kali. Coba lagi nanti.";
+      return null;
     }
 
     if (username.isEmpty || password.isEmpty) {
-      return "Username dan Password tidak boleh kosong.";
+      errorMessage = "Username dan Password tidak boleh kosong.";
+      return null;
     }
 
-    // Use the imported map
-    if (hardcodedUsers.containsKey(username) && hardcodedUsers[username] == password) {
-      _loginAttempts = 0; // Reset jika berhasil
-      return "success";
-    } else {
-      _loginAttempts++;
-      if (_loginAttempts >= 3) {
-        _isLockedOut = true;
-        // Setelah 10 detik, reset status lockout dan percobaan
-        Timer(const Duration(seconds: 10), () {
-          _isLockedOut = false;
-          _loginAttempts = 0;
-          // Di aplikasi nyata, Anda butuh state management untuk memberitahu UI
-          // agar aktif kembali secara otomatis.
-        });
-        return "Anda telah salah 3 kali. Tombol dinonaktifkan selama 10 detik.";
+    try {
+      final bool isPasswordCorrect = await _mongoService.verifyPassword(username, password);
+
+      if (isPasswordCorrect) {
+        _loginAttempts = 0;
+        errorMessage = null;
+
+        final user = await _mongoService.getUserByUid(username);
+        if (user != null) {
+          // Transform UserModel to the Map structure expected by the UI
+          return {
+            'uid': user.uid,
+            'username': user.uid, // Assuming uid is the username
+            'role': user.role,
+            'teamId': user.teamId,
+          };
+        } else {
+          // This case is unlikely if verifyPassword passed, but good to handle
+          errorMessage = "Gagal mengambil data pengguna setelah login.";
+          return null;
+        }
+      } else {
+        _handleFailedLoginAttempt();
+        return null;
       }
-      return "Username atau Password salah.";
+    } catch (e) {
+      errorMessage = "Terjadi kesalahan: $e";
+      return null;
     }
+  }
+
+  void _handleFailedLoginAttempt() {
+    _loginAttempts++;
+    if (_loginAttempts >= 3) {
+      _isLockedOut = true;
+      _lockoutTimer?.cancel(); // Cancel any existing timer
+      _lockoutTimer = Timer(const Duration(seconds: 10), () {
+        _isLockedOut = false;
+        _loginAttempts = 0;
+      });
+      errorMessage = "Anda telah salah 3 kali. Tombol dinonaktifkan selama 10 detik.";
+    } else {
+      errorMessage = "Username atau Password salah. (${3 - _loginAttempts}x percobaan tersisa)";
+    }
+  }
+
+  void dispose() {
+    _lockoutTimer?.cancel();
   }
 }
 

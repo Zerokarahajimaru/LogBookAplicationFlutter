@@ -1,9 +1,9 @@
 // login_view.dart
 import 'package:flutter/material.dart';
-// Import Controller milik sendiri (masih satu folder)
 import 'package:flutter_application_1/features/auth/login_controller.dart';
-// Import View dari fitur lain (Logbook) untuk navigasi
-import 'package:flutter_application_1/features/logbook/counter_view.dart';
+import 'package:flutter_application_1/features/auth/registration_view.dart';
+import 'package:flutter_application_1/features/logbook/log_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -13,76 +13,177 @@ class LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<LoginView> {
-  // Inisialisasi Otak dan Controller Input
   final LoginController _controller = LoginController();
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
 
-  bool _isPasswordVisible = false; // State untuk visibilitas password
+  bool _isPasswordVisible = false;
 
-  Future<void> _handleLogin() async { // Ubah menjadi async
-    String user = _userController.text;
-    String pass = _passController.text;
+  Future<void> _handleLogin() async {
+    final currentUser = await _controller.login(
+      _userController.text, 
+      _passController.text
+    );
 
-    // Panggil fungsi login yang sudah diupdate
-    String loginResult = await _controller.login(user, pass);
+    if (!mounted) return;
 
-    setState(() {
-      // Memastikan UI diperbarui, terutama untuk status lockout
-    });
+    setState(() {});
 
-    if (loginResult == "success") {
+    if (currentUser != null) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          // Di sini kita kirimkan variabel 'user' ke parameter 'username' di CounterView
-          builder: (context) => CounterView(username: user),
+          builder: (context) => LogView(currentUser: currentUser),
         ),
       );
-    } else {
+    } else if (_controller.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loginResult)), // Tampilkan pesan dari controller
+        SnackBar(
+          content: Text(_controller.errorMessage!),
+          backgroundColor: Colors.redAccent,
+        ),
       );
     }
+  }
+
+  void _navigateToRegister() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const RegistrationView()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _userController.dispose();
+    _passController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Login Gatekeeper")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _userController,
-              decoration: const InputDecoration(labelText: "Username"),
-            ),
-            TextField(
-              controller: _passController,
-              obscureText: !_isPasswordVisible, // Kontrol visibilitas
-              decoration: InputDecoration(
-                labelText: "Password",
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _isPasswordVisible
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isPasswordVisible = !_isPasswordVisible;
-                    });
-                  },
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 30.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 60),
+              // Logo Flutter & Brand Name
+              Image.asset(
+
+width: MediaQuery.of(context).size.width * 0.4, 
+        fit: BoxFit.contain,
+                                'assets/images/police_badge_no_bg.png',
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "LogBook App",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                  color: Colors.black87,
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _controller.isLockedOut ? null : _handleLogin, // Nonaktifkan jika lockout
-              child: const Text("Masuk"),
-            ),
-          ],
+              const SizedBox(height: 60),
+
+              // Input Username/Email
+              _buildTextField(
+                controller: _userController,
+                label: "Username",
+                icon: Icons.email_outlined,
+              ),
+              const SizedBox(height: 20),
+
+              // Input Password
+              _buildTextField(
+                controller: _passController,
+                label: "Password",
+                icon: Icons.lock_outline,
+                isPassword: true,
+                obscureText: !_isPasswordVisible,
+                onSuffixIconPressed: () {
+                  setState(() {
+                    _isPasswordVisible = !_isPasswordVisible;
+                  });
+                },
+              ),
+              const SizedBox(height: 40),
+
+              // Login Button
+              ElevatedButton(
+                onPressed: _controller.isLockedOut ? null : _handleLogin,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF689F38), // Warna hijau seperti di gambar
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 55),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  elevation: 2,
+                ),
+                child: const Text(
+                  "Log in",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: _navigateToRegister,
+                child: Text(
+                  'Belum punya akun? Daftar di sini',
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Widget pendukung untuk menjaga kode tetap SOLID (Single Responsibility)
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+    bool obscureText = false,
+    VoidCallback? onSuffixIconPressed,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      decoration: InputDecoration(
+        hintText: label,
+        prefixIcon: Icon(icon, color: Colors.grey),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  obscureText ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.grey,
+                ),
+                onPressed: onSuffixIconPressed,
+              )
+            : null,
+        filled: true,
+        fillColor: Colors.grey[100],
+        contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Color(0xFF689F38), width: 2),
         ),
       ),
     );

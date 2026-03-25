@@ -1,29 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/features/logbook/models/log_model.dart';
 import 'package:flutter_application_1/features/onboarding/onboarding_view.dart';
 import 'package:flutter_application_1/features/auth/login_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 void main() async {
-  // Pastikan binding Flutter sudah siap sebelum menggunakan SharedPreferences
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Dapatkan instance SharedPreferences
+  // Load environment variables and initialize date formatting
+  await dotenv.load(fileName: ".env");
+  await initializeDateFormatting('id_ID', null);
+
+  // Hive Initialization
+  await Hive.initFlutter();
+  Hive.registerAdapter(LogModelAdapter());
+  await Hive.openBox<LogModel>('offline_logs');
+
+
   final prefs = await SharedPreferences.getInstance();
   
   // HAPUS BARIS INI UNTUK PRODUKSI
-  // Baris ini akan selalu menampilkan onboarding page untuk keperluan development
-  await prefs.setBool('onboarding_completed', false);
+  // await prefs.setBool('onboarding_completed', false);
 
-  // Cek apakah onboarding sudah pernah selesai
-  // Jika 'onboarding_completed' tidak ada, kembalikan false
   final bool onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
 
   runApp(
     MaterialApp(
-      // Jika onboarding sudah selesai, langsung ke LoginView
-      // Jika belum, tampilkan OnboardingPage
       home: onboardingCompleted ? const LoginView() : const OnboardingPage(),
-      debugShowCheckedModeBanner: false, // Opsional: menghilangkan banner debug
+      debugShowCheckedModeBanner: false,
     ),
   );
 }

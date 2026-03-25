@@ -7,10 +7,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Added import
 
 import 'package:flutter_application_1/features/onboarding/onboarding_view.dart';
 
 void main() {
+  // Mock SharedPreferences
+  SharedPreferences.setMockInitialValues({}); // Added mock
+
   testWidgets('Onboarding flow test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MaterialApp(
@@ -36,9 +40,12 @@ void main() {
 
     // Tap the 'Get Started' button.
     await tester.tap(find.text('Get Started'));
+    // Ensure navigation and all subsequent frames are rendered
     await tester.pumpAndSettle();
+    await tester.pumpAndSettle(); // Add another one for good measure
+    await tester.pump(const Duration(seconds: 1)); // Add a small delay
 
     // Verify that we are on the login page.
-    expect(find.text('Login Gatekeeper'), findsOneWidget);
+    expect(find.text('LogBook App'), findsOneWidget);
   });
 }
